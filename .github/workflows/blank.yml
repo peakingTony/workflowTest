@@ -1,8 +1,8 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: pigeon deploy from github
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
@@ -21,7 +21,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: git checkout 
+      - name: git checkout
         uses: actions/checkout@v2
 
       - name: Setup Node.js environment
@@ -37,3 +37,26 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
+      - name: Build Image
+      id: build-image
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: pigeonTony
+        tags: latest ${{ github.sha }}
+        dockerfiles: |
+          ./Dockerfile
+
+        # Podman Login action (https://github.com/redhat-actions/podman-login) also be used to log in,
+        # in which case 'username' and 'password' can be omitted.
+        - name: Push To alibaba registry
+          id: push-to-alibaba
+          uses: redhat-actions/push-to-registry@v2
+          with:
+            image: ${{ steps.build-image.outputs.image }}
+            tags: ${{ steps.build-image.outputs.tags }}
+            registry: registry.cn-beijing.aliyuncs.com/ihealthlabs
+            username: ijiankang@ihealthlabs.com.cn
+            password: ${{ secrets.REGISTRY_PASSWORD }}
+
+        - name: Print image url
+          run: echo "Image pushed to ${{ steps.push-to-alibaba.outputs.registry-paths }}"
